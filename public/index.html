@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Collaborative Story Game</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+      .row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+      input, button, select { padding: 8px; font-size: 14px; }
+      .section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+      .contrib { padding: 4px 0; border-bottom: 1px dashed #eee; }
+      .muted { color: #666; font-size: 12px; }
+      code { background: #f6f8fa; padding: 2px 6px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Collaborative Story Game</h1>
+    <div class="section" style="background:#f8fbff">
+      <h2>How to Play</h2>
+      <ol>
+        <li>Click <b>Create</b>. Copy the shown <b>Game ID</b>.</li>
+        <li>Share the <b>Game ID</b> with friends (or open this page in another tab).</li>
+        <li>Each player joins with a unique <b>Player ID</b> and <b>Name</b>.</li>
+        <li>When <b>Status</b> shows <b>active</b> and it’s your turn, submit a sentence.</li>
+        <li>Turns rotate automatically. Watch the story grow below.</li>
+      </ol>
+      <div id="statusBanner" class="muted"></div>
+    </div>
+
+    <div class="section">
+      <h2>Create Game</h2>
+      <div class="row">
+        <input id="title" placeholder="Title" />
+        <input id="prompt" placeholder="Starting prompt (optional)" />
+        <input id="maxPlayers" type="number" min="2" placeholder="Max players (optional)" />
+        <button id="createBtn">Create</button>
+      </div>
+      <div class="muted">Game ID: <code id="gameIdOut">(none)</code></div>
+    </div>
+
+    <div class="section">
+      <h2>Join Game</h2>
+      <div class="row">
+        <input id="joinGameId" placeholder="Game ID" />
+        <input id="playerId" placeholder="Player ID (e.g. p1)" />
+        <input id="playerName" placeholder="Player name" />
+        <button id="joinBtn">Join</button>
+      </div>
+      <div class="muted">Status: <code id="statusOut">(unknown)</code> · Current Turn: <code id="turnOut">(unknown)</code></div>
+    </div>
+
+    <div class="section">
+      <h2>Submit Sentence</h2>
+      <div class="row">
+        <input id="playGameId" placeholder="Game ID" />
+        <input id="playPlayerId" placeholder="Your Player ID" />
+        <input id="sentence" placeholder="Your sentence" style="min-width: 320px;" />
+        <button id="submitBtn" disabled>Submit</button>
+        <span class="muted" id="submitHint">Join with your Player ID. Submit when it's your turn.</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Game State</h2>
+      <div class="row">
+        <input id="stateGameId" placeholder="Game ID" />
+        <button id="refreshBtn">Refresh</button>
+      </div>
+      <pre id="stateJson" class="muted" style="white-space:pre-wrap"></pre>
+      <h3>Story</h3>
+      <div id="story"></div>
+    </div>
+
+    <script>
+      const base = '';
+
+      async function post(path, body) {
+        const res = await fetch(base + path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body || {})
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        return data;
+      }
+
+      async function get(path) {
+        const res = await fetch(base + path);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        return data;
+      }
+
+      const title = document.getElementById('title');
+      const prompt = document.getElementById('prompt');
+      const maxPlayers = document.getElementById('maxPlayers');
+      const createBtn = document.getElementById('createBtn');
+      const gameIdOut = document.getElementById('gameIdOut');
+
+      const joinGameId = document.getElementById('joinGameId');
+      const playerId = document.getElementById('playerId');
+      const playerName = document.getElementById('playerName');
+      const joinBtn = document.getElementById('joinBtn');
+      const turnOut = document.getElementById('turnOut');
+
+      const playGameId = document.getElementById('playGameId');
+      const playPlayerId = document.getElementById('playPlayerId');
+      const sentence = document.getElementById('sentence');
+      const submitBtn = document.getElementById('submitBtn');
+
+      const stateGameId = document.getElementById('stateGameId');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const stateJson = document.getElementById('stateJson');
+      const story = document.getElementById('story');
+
+      function fillGameIds(id) {
+        joinGameId.value = id;
+        playGameId.value = id;
+        stateGameId.value = id;
+        gameIdOut.textContent = id;
+      }
+
+      function renderState(s) {
+        stateJson.textContent = JSON.stringify(s, null, 2);
+        turnOut.textContent = s.currentTurnPlayerId || '(none)';
+        statusOut.textContent = s.status || '(unknown)';
+        // Enable submit only when active and it's this player's turn
+        const you = (playPlayerId.value || '').trim();
+        const canSubmit = s && s.status === 'active' && you && s.currentTurnPlayerId === you;
+        submitBtn.disabled = !canSubmit;
+        submitHint.textContent = canSubmit ? 'Your turn! Submit a sentence.' : 'Submit is enabled when the game is active and it\'s your turn.';
+        statusBanner.textContent = canSubmit ? `Your turn (${you})` : (s.status === 'active' ? `Waiting for ${s.currentTurnPlayerId || 'someone'}...` : 'Waiting for at least 2 players to join...');
+        story.innerHTML = '';
+        (s.contributions || []).forEach(c => {
+          const div = document.createElement('div');
+          div.className = 'contrib';
+          div.textContent = `${c.order}. [${c.playerId}] ${c.sentence}`;
+          story.appendChild(div);
+        });
+      }
+
+      createBtn.onclick = async () => {
+        try {
+          const body = { title: title.value };
+          if (prompt.value) body.startingPrompt = prompt.value;
+          if (maxPlayers.value) body.maxPlayers = Number(maxPlayers.value);
+          const { gameId } = await post('/createGame', body);
+          fillGameIds(gameId);
+          const s = await get(`/getGameState?gameId=${encodeURIComponent(gameId)}`);
+          renderState(s);
+        } catch (e) { alert(e.message); }
+      };
+
+      joinBtn.onclick = async () => {
+        try {
+          const { joined } = await post('/joinGame', {
+            gameId: joinGameId.value,
+            playerId: playerId.value,
+            name: playerName.value,
+          });
+          if (joined) {
+            const s = await get(`/getGameState?gameId=${encodeURIComponent(joinGameId.value)}`);
+            renderState(s);
+          }
+        } catch (e) { alert(e.message); }
+      };
+
+      submitBtn.onclick = async () => {
+        try {
+          const { submitted } = await post('/submitSentence', {
+            gameId: playGameId.value,
+            playerId: playPlayerId.value,
+            sentence: sentence.value,
+          });
+          if (submitted) {
+            sentence.value = '';
+            const s = await get(`/getGameState?gameId=${encodeURIComponent(playGameId.value)}`);
+            renderState(s);
+          }
+        } catch (e) { alert(e.message); }
+      };
+
+      refreshBtn.onclick = async () => {
+        try {
+          const s = await get(`/getGameState?gameId=${encodeURIComponent(stateGameId.value)}`);
+          renderState(s);
+        } catch (e) { alert(e.message); }
+      };
+
+      // Re-evaluate submit availability when player id changes
+      playPlayerId.addEventListener('input', async () => {
+        if (!playGameId.value) return;
+        try {
+          const s = await get(`/getGameState?gameId=${encodeURIComponent(playGameId.value)}`);
+          renderState(s);
+        } catch {}
+      });
+    </script>
+  </body>
+  </html>
+
+

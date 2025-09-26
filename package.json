@@ -1,6 +1,14 @@
 {
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "emulators": "firebase emulators:start"
+  },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
-    "firebase": "^12.3.0"
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "firebase": "^12.3.0",
+    "uuid": "^9.0.1"
   }
 }
