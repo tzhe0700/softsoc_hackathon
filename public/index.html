@@ -25,7 +25,13 @@
       .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.08); background: #0b1220; font-size: 12px; color: var(--muted); }
       .title { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
       .contrib { padding: 8px 10px; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; margin-bottom: 8px; background: rgba(11,18,32,0.8); }
-      .story { min-height: 120px; }
+      .story { min-height: 160px; padding: 20px; background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }
+      .story p { margin: 10px 0; font-size: 18px; line-height: 1.7; font-family: Georgia, 'Times New Roman', serif; }
+      .byline { color: var(--muted); font-size: 12px; margin-bottom: 2px; }
+      .banner { padding: 10px 14px; border-radius: 10px; background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.3); display: inline-block; }
+      .compose { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+      textarea { flex: 1; min-height: 60px; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: #0b1220; color: var(--text); resize: vertical; }
+      .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
       .accent { color: var(--accent); }
       .accent2 { color: var(--accent2); }
     </style>
@@ -49,7 +55,8 @@
     </div>
 
     <div class="card">
-      <h2>Create Game</h2>
+      <details id="createSection" open>
+        <summary class="title">Create Game</summary>
       <div class="row">
         <input id="title" placeholder="Title" />
         <details>
@@ -83,10 +90,12 @@
         <button id="createBtn">Create</button>
       </div>
       <div class="muted">Game ID: <code id="gameIdOut">(none)</code></div>
+      </details>
     </div>
 
     <div class="card">
-      <h2>Join Game</h2>
+      <details id="joinSection" open>
+        <summary class="title">Join Game</summary>
       <div class="row">
         <input id="joinGameId" placeholder="Game ID (shared)" />
         <select id="playerId">
@@ -98,7 +107,11 @@
         <input id="playerName" placeholder="Player name" />
         <button id="joinBtn">Join</button>
       </div>
-      <div class="muted">Status: <span class="pill" id="statusOut">(unknown)</span> · Current Turn: <span class="pill" id="turnOut">(unknown)</span> <span class="pill" id="turnNameOut" style="margin-left:6px"></span></div>
+      <div class="actions">
+        <div class="banner">Status: <b id="statusOut">(unknown)</b> · Turn: <b id="turnNameOut">(unknown)</b></div>
+        <button id="copyInvite">Copy Invite Link</button>
+      </div>
+      </details>
     </div>
 
     <div class="card">
@@ -111,9 +124,13 @@
           <option value="p3">Your Player ID: p3</option>
           <option value="p4">Your Player ID: p4</option>
         </select>
-        <input id="sentence" placeholder="Your sentence" style="min-width: 320px;" />
-        <button id="submitBtn" disabled>Submit</button>
-        <span class="muted" id="submitHint">Join with your Player ID. Submit when it's your turn.</span>
+      </div>
+      <div class="compose">
+        <textarea id="sentence" placeholder="Write your next sentence..."></textarea>
+        <div class="actions">
+          <button id="submitBtn" disabled>Submit</button>
+          <span class="muted" id="submitHint">Join with your Player ID. Submit when it's your turn.</span>
+        </div>
       </div>
     </div>
 
@@ -123,15 +140,9 @@
         <input id="stateGameId" placeholder="Game ID (shared)" />
         <button id="refreshBtn">Refresh</button>
       </div>
-      <div class="row">
-        <div class="card" style="flex:1; background: rgba(0,0,0,0.2);">
-          <h3 class="title accent">Story</h3>
-          <div id="story" class="story"></div>
-        </div>
-        <div class="card" style="flex:1; background: rgba(0,0,0,0.2);">
-          <h3 class="title accent2">Raw State</h3>
-          <pre id="stateJson" class="muted" style="white-space:pre-wrap"></pre>
-        </div>
+      <div class="card" style="background: rgba(0,0,0,0.2);">
+        <h3 class="title accent">Story</h3>
+        <div id="story" class="story"></div>
       </div>
     </div>
     </div>
@@ -168,6 +179,7 @@
       const playerName = document.getElementById('playerName');
       const joinBtn = document.getElementById('joinBtn');
       const turnOut = document.getElementById('turnOut');
+      const turnNameOut = document.getElementById('turnNameOut');
 
       const playGameId = document.getElementById('playGameId');
       const playPlayerId = document.getElementById('playPlayerId');
@@ -176,7 +188,7 @@
 
       const stateGameId = document.getElementById('stateGameId');
       const refreshBtn = document.getElementById('refreshBtn');
-      const stateJson = document.getElementById('stateJson');
+      // const stateJson = document.getElementById('stateJson'); // removed raw state panel
       const story = document.getElementById('story');
 
       function fillGameIds(id) {
@@ -187,9 +199,9 @@
       }
 
       function renderState(s) {
-        stateJson.textContent = JSON.stringify(s, null, 2);
-        turnOut.textContent = s.currentTurnPlayerId || '(none)';
-        turnNameOut.textContent = s.currentTurnPlayerName ? `( ${s.currentTurnPlayerName} )` : '';
+        // raw state hidden
+        if (turnOut) turnOut.textContent = s.currentTurnPlayerId || '(none)';
+        if (turnNameOut) turnNameOut.textContent = s.currentTurnPlayerName ? `( ${s.currentTurnPlayerName} )` : '';
         statusOut.textContent = s.status || '(unknown)';
         // Enable submit only when active and it's this player's turn
         const you = (playPlayerId.value || '').trim();
@@ -233,6 +245,9 @@
           if (joined) {
             const s = await get(`/getGameState?gameId=${encodeURIComponent(joinGameId.value)}`);
             renderState(s);
+            // Collapse create & join blocks on successful join
+            try { document.getElementById('createSection').open = false; } catch {}
+            try { document.getElementById('joinSection').open = false; } catch {}
           }
         } catch (e) { alert(e.message); }
       };
@@ -252,12 +267,49 @@
         } catch (e) { alert(e.message); }
       };
 
+      // Replace input with a bigger textarea styled compose box
+      (function enhanceCompose(){
+        const parent = sentence.parentElement;
+        const ta = document.createElement('textarea');
+        ta.id = 'sentence';
+        ta.placeholder = 'Write your next sentence...';
+        parent.replaceChild(ta, sentence);
+        ta.addEventListener('keydown', (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !submitBtn.disabled) {
+            submitBtn.click();
+          }
+        });
+      })();
+
       refreshBtn.onclick = async () => {
         try {
           const s = await get(`/getGameState?gameId=${encodeURIComponent(stateGameId.value)}`);
           renderState(s);
         } catch (e) { alert(e.message); }
       };
+
+      // Invite link copying
+      document.getElementById('copyInvite').onclick = async () => {
+        const id = (stateGameId.value || '').trim();
+        if (!id) { alert('Create or enter a Game ID first.'); return; }
+        const url = new URL(window.location.href);
+        url.searchParams.set('game', id);
+        try {
+          await navigator.clipboard.writeText(url.toString());
+          alert('Invite link copied!');
+        } catch {
+          prompt('Copy this link:', url.toString());
+        }
+      };
+
+      // If URL has ?game=, prefill the Game ID fields
+      (function hydrateFromUrl(){
+        const params = new URLSearchParams(window.location.search);
+        const g = params.get('game');
+        if (g) {
+          fillGameIds(g);
+        }
+      })();
 
       // Auto-refresh every 2 seconds if a Game ID is present
       setInterval(async () => {
