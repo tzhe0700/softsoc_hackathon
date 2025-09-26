@@ -3,6 +3,7 @@
 const express = require('express');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
@@ -13,6 +14,16 @@ app.use(express.static('public'));
 /** @type {Record<string, any>} */
 const games = Object.create(null);
 
+function generateShortId(len = 6) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // avoid confusing chars
+  let id = '';
+  while (id.length < len) {
+    const buf = crypto.randomBytes(1)[0];
+    id += alphabet[buf % alphabet.length];
+  }
+  return id;
+}
+
 app.post('/createGame', (req, res) => {
   const { title, startingPrompt, maxPlayers } = req.body || {};
   if (!title || typeof title !== 'string') {
@@ -22,7 +33,9 @@ app.post('/createGame', (req, res) => {
     return res.status(400).json({ error: 'maxPlayers must be a number >= 2 if provided' });
   }
 
-  const id = uuidv4();
+  // Generate a short, human-friendly game id
+  let id = generateShortId(6);
+  while (games[id]) id = generateShortId(6);
   const now = Date.now();
   const game = {
     id,
@@ -80,7 +93,8 @@ app.post('/submitSentence', (req, res) => {
   if (playerIndex !== game.currentTurnIndex) return res.status(409).json({ error: 'Not this player\'s turn' });
 
   const order = game.contributions.length;
-  game.contributions.push({ playerId, sentence: trimmed, order, createdAt: Date.now() });
+  const playerName = game.players[playerIndex]?.name || playerId;
+  game.contributions.push({ playerId, playerName, sentence: trimmed, order, createdAt: Date.now() });
   game.currentTurnIndex = game.players.length === 0 ? 0 : (game.currentTurnIndex + 1) % game.players.length;
   game.updatedAt = Date.now();
   res.json({ submitted: true });
@@ -91,13 +105,15 @@ app.get('/getGameState', (req, res) => {
   if (!gameId) return res.status(400).json({ error: 'gameId is required' });
   const game = games[gameId];
   if (!game) return res.status(404).json({ error: 'Game not found' });
+  const currentTurnPlayer = game.players[game.currentTurnIndex] || null;
   res.json({
     gameId: game.id,
     title: game.title,
     status: game.status,
     players: game.players.map(p => ({ id: p.id, name: p.name })),
-    currentTurnPlayerId: game.players[game.currentTurnIndex]?.id || null,
-    contributions: game.contributions.map(c => ({ order: c.order, playerId: c.playerId, sentence: c.sentence })),
+    currentTurnPlayerId: currentTurnPlayer ? currentTurnPlayer.id : null,
+    currentTurnPlayerName: currentTurnPlayer ? currentTurnPlayer.name : null,
+    contributions: game.contributions.map(c => ({ order: c.order, playerId: c.playerId, playerName: c.playerName || null, sentence: c.sentence })),
     startingPrompt: game.startingPrompt,
     createdAt: game.createdAt,
     updatedAt: game.updatedAt,

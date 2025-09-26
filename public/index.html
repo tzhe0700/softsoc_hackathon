@@ -5,18 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Collaborative Story Game</title>
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
-      .row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-      input, button, select { padding: 8px; font-size: 14px; }
-      .section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-      .contrib { padding: 4px 0; border-bottom: 1px dashed #eee; }
-      .muted { color: #666; font-size: 12px; }
-      code { background: #f6f8fa; padding: 2px 6px; border-radius: 4px; }
+      :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#22d3ee; --accent2:#a78bfa; --btn:#1f2937; --border:#1f2937; }
+      * { box-sizing: border-box; }
+      body { background: linear-gradient(135deg, #0b1020, #111b3a); color: var(--text); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; }
+      header { padding: 24px; text-align: center; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(6px); position: sticky; top: 0; z-index: 10; }
+      h1 { margin: 0; font-weight: 700; letter-spacing: 0.3px; }
+      .container { max-width: 980px; margin: 24px auto; padding: 0 20px; }
+      .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+      @media (min-width: 900px) { .grid { grid-template-columns: 1.2fr 1fr; } }
+      .card { background: rgba(17,24,39,0.7); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      input, button { padding: 10px 12px; font-size: 14px; border-radius: 10px; border: 1px solid var(--border); background: #0b1220; color: var(--text); }
+      input::placeholder { color: var(--muted); }
+      button { background: linear-gradient(135deg, #1f2937, #0f172a); border: 1px solid rgba(255,255,255,0.08); cursor: pointer; transition: transform .08s ease, box-shadow .2s ease; }
+      button:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,0.3); }
+      button:disabled { opacity: .5; cursor: not-allowed; }
+      .muted { color: var(--muted); font-size: 12px; }
+      code { background: #0b1220; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); }
+      .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.08); background: #0b1220; font-size: 12px; color: var(--muted); }
+      .title { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
+      .contrib { padding: 8px 10px; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; margin-bottom: 8px; background: rgba(11,18,32,0.8); }
+      .story { min-height: 120px; }
+      .accent { color: var(--accent); }
+      .accent2 { color: var(--accent2); }
     </style>
   </head>
   <body>
-    <h1>Collaborative Story Game</h1>
-    <div class="section" style="background:#f8fbff">
+    <header>
+      <h1>Collaborative Story Game</h1>
+      <div class="muted">Create a game, share the ID, take turns adding sentences.</div>
+    </header>
+    <div class="container grid">
+    <div class="card" style="grid-column: 1 / -1; background: linear-gradient(135deg, rgba(34,211,238,0.08), rgba(167,139,250,0.08));">
       <h2>How to Play</h2>
       <ol>
         <li>Click <b>Create</b>. Copy the shown <b>Game ID</b>.</li>
@@ -28,48 +48,92 @@
       <div id="statusBanner" class="muted"></div>
     </div>
 
-    <div class="section">
+    <div class="card">
       <h2>Create Game</h2>
       <div class="row">
         <input id="title" placeholder="Title" />
-        <input id="prompt" placeholder="Starting prompt (optional)" />
-        <input id="maxPlayers" type="number" min="2" placeholder="Max players (optional)" />
+        <details>
+          <summary class="muted">Advanced options</summary>
+          <div class="row" style="margin-top:8px">
+            <select id="theme">
+              <option value="">Theme (optional)</option>
+              <option>Fantasy</option>
+              <option>Sci‑Fi</option>
+              <option>Mystery</option>
+              <option>Romance</option>
+              <option>Comedy</option>
+              <option>Horror</option>
+            </select>
+            <select id="promptPick">
+              <option value="">Prompt (optional)</option>
+              <option>Once upon a hackathon...</option>
+              <option>In a galaxy far, far away...</option>
+              <option>On a rainy night, a knock at the door...</option>
+              <option>The AI wrote the first line, and then...</option>
+            </select>
+            <select id="maxPlayers">
+              <option value="">Max players (optional)</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </div>
+        </details>
         <button id="createBtn">Create</button>
       </div>
       <div class="muted">Game ID: <code id="gameIdOut">(none)</code></div>
     </div>
 
-    <div class="section">
+    <div class="card">
       <h2>Join Game</h2>
       <div class="row">
-        <input id="joinGameId" placeholder="Game ID" />
-        <input id="playerId" placeholder="Player ID (e.g. p1)" />
+        <input id="joinGameId" placeholder="Game ID (shared)" />
+        <select id="playerId">
+          <option value="p1">Player ID: p1</option>
+          <option value="p2">Player ID: p2</option>
+          <option value="p3">Player ID: p3</option>
+          <option value="p4">Player ID: p4</option>
+        </select>
         <input id="playerName" placeholder="Player name" />
         <button id="joinBtn">Join</button>
       </div>
-      <div class="muted">Status: <code id="statusOut">(unknown)</code> · Current Turn: <code id="turnOut">(unknown)</code></div>
+      <div class="muted">Status: <span class="pill" id="statusOut">(unknown)</span> · Current Turn: <span class="pill" id="turnOut">(unknown)</span> <span class="pill" id="turnNameOut" style="margin-left:6px"></span></div>
     </div>
 
-    <div class="section">
+    <div class="card">
       <h2>Submit Sentence</h2>
       <div class="row">
-        <input id="playGameId" placeholder="Game ID" />
-        <input id="playPlayerId" placeholder="Your Player ID" />
+        <input id="playGameId" placeholder="Game ID (shared)" />
+        <select id="playPlayerId">
+          <option value="p1">Your Player ID: p1</option>
+          <option value="p2">Your Player ID: p2</option>
+          <option value="p3">Your Player ID: p3</option>
+          <option value="p4">Your Player ID: p4</option>
+        </select>
         <input id="sentence" placeholder="Your sentence" style="min-width: 320px;" />
         <button id="submitBtn" disabled>Submit</button>
         <span class="muted" id="submitHint">Join with your Player ID. Submit when it's your turn.</span>
       </div>
     </div>
 
-    <div class="section">
+    <div class="card" style="grid-column: 1 / -1;">
       <h2>Game State</h2>
       <div class="row">
-        <input id="stateGameId" placeholder="Game ID" />
+        <input id="stateGameId" placeholder="Game ID (shared)" />
         <button id="refreshBtn">Refresh</button>
       </div>
-      <pre id="stateJson" class="muted" style="white-space:pre-wrap"></pre>
-      <h3>Story</h3>
-      <div id="story"></div>
+      <div class="row">
+        <div class="card" style="flex:1; background: rgba(0,0,0,0.2);">
+          <h3 class="title accent">Story</h3>
+          <div id="story" class="story"></div>
+        </div>
+        <div class="card" style="flex:1; background: rgba(0,0,0,0.2);">
+          <h3 class="title accent2">Raw State</h3>
+          <pre id="stateJson" class="muted" style="white-space:pre-wrap"></pre>
+        </div>
+      </div>
+    </div>
     </div>
 
     <script>
@@ -125,18 +189,20 @@
       function renderState(s) {
         stateJson.textContent = JSON.stringify(s, null, 2);
         turnOut.textContent = s.currentTurnPlayerId || '(none)';
+        turnNameOut.textContent = s.currentTurnPlayerName ? `( ${s.currentTurnPlayerName} )` : '';
         statusOut.textContent = s.status || '(unknown)';
         // Enable submit only when active and it's this player's turn
         const you = (playPlayerId.value || '').trim();
         const canSubmit = s && s.status === 'active' && you && s.currentTurnPlayerId === you;
         submitBtn.disabled = !canSubmit;
         submitHint.textContent = canSubmit ? 'Your turn! Submit a sentence.' : 'Submit is enabled when the game is active and it\'s your turn.';
-        statusBanner.textContent = canSubmit ? `Your turn (${you})` : (s.status === 'active' ? `Waiting for ${s.currentTurnPlayerId || 'someone'}...` : 'Waiting for at least 2 players to join...');
+        statusBanner.textContent = canSubmit ? `Your turn (${s.currentTurnPlayerName || you})` : (s.status === 'active' ? `Waiting for ${s.currentTurnPlayerName || 'someone'}...` : 'Waiting for at least 2 players to join...');
         story.innerHTML = '';
         (s.contributions || []).forEach(c => {
           const div = document.createElement('div');
           div.className = 'contrib';
-          div.textContent = `${c.order}. [${c.playerId}] ${c.sentence}`;
+          const who = (c.playerName || '').trim() || c.playerId;
+          div.textContent = `${c.order}. ${who}: ${c.sentence}`;
           story.appendChild(div);
         });
       }
@@ -144,8 +210,12 @@
       createBtn.onclick = async () => {
         try {
           const body = { title: title.value };
-          if (prompt.value) body.startingPrompt = prompt.value;
-          if (maxPlayers.value) body.maxPlayers = Number(maxPlayers.value);
+          const themeVal = document.getElementById('theme').value;
+          const promptPick = document.getElementById('promptPick').value;
+          if (promptPick) body.startingPrompt = promptPick;
+          if (!body.startingPrompt && themeVal) body.startingPrompt = `A ${themeVal.toLowerCase()} themed opening.`;
+          const maxPlayersVal = document.getElementById('maxPlayers').value;
+          if (maxPlayersVal) body.maxPlayers = Number(maxPlayersVal);
           const { gameId } = await post('/createGame', body);
           fillGameIds(gameId);
           const s = await get(`/getGameState?gameId=${encodeURIComponent(gameId)}`);
@@ -188,6 +258,16 @@
           renderState(s);
         } catch (e) { alert(e.message); }
       };
+
+      // Auto-refresh every 2 seconds if a Game ID is present
+      setInterval(async () => {
+        const id = (stateGameId.value || '').trim();
+        if (!id) return;
+        try {
+          const s = await get(`/getGameState?gameId=${encodeURIComponent(id)}`);
+          renderState(s);
+        } catch {}
+      }, 2000);
 
       // Re-evaluate submit availability when player id changes
       playPlayerId.addEventListener('input', async () => {
