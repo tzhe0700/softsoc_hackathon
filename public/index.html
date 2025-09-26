@@ -47,7 +47,7 @@
       <ol>
         <li>Click <b>Create</b>. Copy the shown <b>Game ID</b>.</li>
         <li>Share the <b>Game ID</b> with friends (or open this page in another tab).</li>
-        <li>Each player joins with a unique <b>Player ID</b> and <b>Name</b>.</li>
+        <li>Each player joins with a unique <b>Name</b>.</li>
         <li>When <b>Status</b> shows <b>active</b> and it’s your turn, submit a sentence.</li>
         <li>Turns rotate automatically. Watch the story grow below.</li>
       </ol>
@@ -98,17 +98,12 @@
         <summary class="title">Join Game</summary>
       <div class="row">
         <input id="joinGameId" placeholder="Game ID (shared)" />
-        <select id="playerId">
-          <option value="p1">Player ID: p1</option>
-          <option value="p2">Player ID: p2</option>
-          <option value="p3">Player ID: p3</option>
-          <option value="p4">Player ID: p4</option>
-        </select>
         <input id="playerName" placeholder="Player name" />
         <button id="joinBtn">Join</button>
       </div>
       <div class="actions">
         <div class="banner">Status: <b id="statusOut">(unknown)</b> · Turn: <b id="turnNameOut">(unknown)</b></div>
+        <button id="startGameBtn">Start Game</button>
         <button id="copyInvite">Copy Invite Link</button>
       </div>
       </details>
@@ -118,12 +113,7 @@
       <h2>Submit Sentence</h2>
       <div class="row">
         <input id="playGameId" placeholder="Game ID (shared)" />
-        <select id="playPlayerId">
-          <option value="p1">Your Player ID: p1</option>
-          <option value="p2">Your Player ID: p2</option>
-          <option value="p3">Your Player ID: p3</option>
-          <option value="p4">Your Player ID: p4</option>
-        </select>
+        <input id="playPlayerName" placeholder="Your name" />
       </div>
       <div class="compose">
         <textarea id="sentence" placeholder="Write your next sentence..."></textarea>
@@ -175,14 +165,16 @@
       const gameIdOut = document.getElementById('gameIdOut');
 
       const joinGameId = document.getElementById('joinGameId');
-      const playerId = document.getElementById('playerId');
       const playerName = document.getElementById('playerName');
       const joinBtn = document.getElementById('joinBtn');
+      const startGameBtn = document.getElementById('startGameBtn');
       const turnOut = document.getElementById('turnOut');
       const turnNameOut = document.getElementById('turnNameOut');
+      const statusOut = document.getElementById('statusOut');
+      const statusBanner = document.getElementById('statusBanner');
 
       const playGameId = document.getElementById('playGameId');
-      const playPlayerId = document.getElementById('playPlayerId');
+      const playPlayerName = document.getElementById('playPlayerName');
       const sentence = document.getElementById('sentence');
       const submitBtn = document.getElementById('submitBtn');
 
@@ -200,20 +192,21 @@
 
       function renderState(s) {
         // raw state hidden
-        if (turnOut) turnOut.textContent = s.currentTurnPlayerId || '(none)';
+        if (turnOut) turnOut.textContent = s.currentTurnPlayerName || '(none)';
         if (turnNameOut) turnNameOut.textContent = s.currentTurnPlayerName ? `( ${s.currentTurnPlayerName} )` : '';
         statusOut.textContent = s.status || '(unknown)';
         // Enable submit only when active and it's this player's turn
-        const you = (playPlayerId.value || '').trim();
-        const canSubmit = s && s.status === 'active' && you && s.currentTurnPlayerId === you;
+        const you = (playPlayerName.value || '').trim();
+        const canSubmit = s && s.status === 'active' && you && s.currentTurnPlayerName && s.currentTurnPlayerName.toLowerCase() === you.toLowerCase();
         submitBtn.disabled = !canSubmit;
         submitHint.textContent = canSubmit ? 'Your turn! Submit a sentence.' : 'Submit is enabled when the game is active and it\'s your turn.';
-        statusBanner.textContent = canSubmit ? `Your turn (${s.currentTurnPlayerName || you})` : (s.status === 'active' ? `Waiting for ${s.currentTurnPlayerName || 'someone'}...` : 'Waiting for at least 2 players to join...');
+        statusBanner.textContent = canSubmit ? `Your turn (${s.currentTurnPlayerName || you})` : (s.status === 'active' ? `Waiting for ${s.currentTurnPlayerName || 'someone'}...` : 'Waiting to start...');
+        startGameBtn.disabled = !s || (s.status === 'active') || !joinGameId.value;
         story.innerHTML = '';
         (s.contributions || []).forEach(c => {
           const div = document.createElement('div');
           div.className = 'contrib';
-          const who = (c.playerName || '').trim() || c.playerId;
+          const who = (c.playerName || '').trim();
           div.textContent = `${c.order}. ${who}: ${c.sentence}`;
           story.appendChild(div);
         });
@@ -239,15 +232,27 @@
         try {
           const { joined } = await post('/joinGame', {
             gameId: joinGameId.value,
-            playerId: playerId.value,
             name: playerName.value,
           });
           if (joined) {
             const s = await get(`/getGameState?gameId=${encodeURIComponent(joinGameId.value)}`);
             renderState(s);
+            // Fill play fields with your join info
+            try { playGameId.value = joinGameId.value; } catch {}
+            try { playPlayerName.value = playerName.value; } catch {}
             // Collapse create & join blocks on successful join
             try { document.getElementById('createSection').open = false; } catch {}
             try { document.getElementById('joinSection').open = false; } catch {}
+          }
+        } catch (e) { alert(e.message); }
+      };
+
+      startGameBtn.onclick = async () => {
+        try {
+          const { started } = await post('/startGame', { gameId: joinGameId.value });
+          if (started) {
+            const s = await get(`/getGameState?gameId=${encodeURIComponent(joinGameId.value)}`);
+            renderState(s);
           }
         } catch (e) { alert(e.message); }
       };
@@ -256,7 +261,7 @@
         try {
           const { submitted } = await post('/submitSentence', {
             gameId: playGameId.value,
-            playerId: playPlayerId.value,
+            name: playPlayerName.value,
             sentence: sentence.value,
           });
           if (submitted) {
@@ -315,8 +320,8 @@
         } catch {}
       }, 2000);
 
-      // Re-evaluate submit availability when player id changes
-      playPlayerId.addEventListener('input', async () => {
+      // Re-evaluate submit availability when player name changes
+      playPlayerName.addEventListener('input', async () => {
         if (!playGameId.value) return;
         try {
           const s = await get(`/getGameState?gameId=${encodeURIComponent(playGameId.value)}`);
