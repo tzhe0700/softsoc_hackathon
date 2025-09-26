@@ -267,19 +267,13 @@
         } catch (e) { alert(e.message); }
       };
 
-      // Replace input with a bigger textarea styled compose box
-      (function enhanceCompose(){
-        const parent = sentence.parentElement;
-        const ta = document.createElement('textarea');
-        ta.id = 'sentence';
-        ta.placeholder = 'Write your next sentence...';
-        parent.replaceChild(ta, sentence);
-        ta.addEventListener('keydown', (e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !submitBtn.disabled) {
-            submitBtn.click();
-          }
-        });
-      })();
+      // Submit with Cmd/Ctrl+Enter from the textarea
+      sentence.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !submitBtn.disabled) {
+          e.preventDefault();
+          submitBtn.click();
+        }
+      });
 
       refreshBtn.onclick = async () => {
         try {
