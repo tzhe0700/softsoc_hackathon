@@ -240,6 +240,15 @@
             // Fill play fields with your join info
             try { playGameId.value = joinGameId.value; } catch {}
             try { playPlayerName.value = playerName.value; } catch {}
+            try { stateGameId.value = joinGameId.value; } catch {}
+            // Persist and reflect in URL for reloads/new tabs
+            try {
+              localStorage.setItem('gameId', joinGameId.value);
+              localStorage.setItem('playerName', playerName.value);
+              const url = new URL(window.location.href);
+              url.searchParams.set('game', joinGameId.value);
+              history.replaceState(null, '', url.toString());
+            } catch {}
             // Collapse create & join blocks on successful join
             try { document.getElementById('createSection').open = false; } catch {}
             try { document.getElementById('joinSection').open = false; } catch {}
@@ -253,6 +262,12 @@
           if (started) {
             const s = await get(`/getGameState?gameId=${encodeURIComponent(joinGameId.value)}`);
             renderState(s);
+            try { stateGameId.value = joinGameId.value; } catch {}
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.set('game', joinGameId.value);
+              history.replaceState(null, '', url.toString());
+            } catch {}
           }
         } catch (e) { alert(e.message); }
       };
@@ -302,17 +317,20 @@
       };
 
       // If URL has ?game=, prefill the Game ID fields
-      (function hydrateFromUrl(){
+      (function hydrate(){
         const params = new URLSearchParams(window.location.search);
-        const g = params.get('game');
+        const g = params.get('game') || localStorage.getItem('gameId') || '';
+        const n = localStorage.getItem('playerName') || '';
         if (g) {
           fillGameIds(g);
         }
+        try { if (n) playerName.value = n; } catch {}
+        try { if (n) playPlayerName.value = n; } catch {}
       })();
 
       // Auto-refresh every 2 seconds if a Game ID is present
       setInterval(async () => {
-        const id = (stateGameId.value || '').trim();
+        const id = (stateGameId.value || joinGameId.value || playGameId.value || '').trim();
         if (!id) return;
         try {
           const s = await get(`/getGameState?gameId=${encodeURIComponent(id)}`);
