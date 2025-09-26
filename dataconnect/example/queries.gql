@@ -1,0 +1,35 @@
+mutation CreateNewUser @auth(level: PUBLIC) {
+  user_insert(data: {
+    username: "default_username",
+    email: "default@example.com"
+  })
+}
+
+query GetFirstTenStories @auth(level: PUBLIC) {
+  stories(limit: 10) {
+    id
+    title
+    startingPrompt
+  }
+}
+
+mutation AddContributionToStory($storyId: UUID!, $word: String!, $orderInStory: Int!) @auth(level: USER) {
+  contribution_insert(data: {
+    storyId: $storyId,
+    word: $word,
+    orderInStory: $orderInStory,
+    userId_expr: "auth.uid",
+    createdAt_expr: "request.time"
+  })
+}
+
+query GetContributionsForStory($storyId: UUID!) @auth(level: PUBLIC) {
+  contributions(where: {storyId: {eq: $storyId}}, orderBy: [{orderInStory: ASC}]) {
+    id
+    word
+    orderInStory
+    user {
+      username
+    }
+  }
+}

@@ -1,0 +1,23 @@
+type User @table {
+  username: String!
+  email: String
+  createdAt: Timestamp!
+  lastActive: Timestamp
+}
+
+type Story @table {
+  title: String!
+  wordLimit: Int!
+  currentWordCount: Int!
+  status: String!
+  createdAt: Timestamp!
+  startingPrompt: String
+}
+
+type Contribution @table {
+  user: User
+  story: Story
+  word: String!
+  orderInStory: Int!
+  createdAt: Timestamp!
+}

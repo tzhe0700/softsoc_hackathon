@@ -1,0 +1,56 @@
+mutation SeedDatabase @auth(level: USER) {
+  user_upsertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      username: "bobuser",
+      email: "bob@example.com",
+      createdAt: "2024-01-01T00:00:00Z",
+      lastActive: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      username: "aliceuser",
+      email: "alice@example.com",
+      createdAt: "2024-01-02T00:00:00Z",
+      lastActive: "2024-01-02T00:00:00Z"
+    }
+  ])
+  story_upsertMany(data: [
+    {
+      id: "650e8400-e29b-41d4-a716-446655440000",
+      title: "My First Story",
+      status: "draft",
+      createdAt: "2024-01-03T00:00:00Z",
+      currentWordCount: 0,
+      wordLimit: 100,
+      startingPrompt: "Once upon a time..."
+    },
+    {
+      id: "650e8400-e29b-41d4-a716-446655440001",
+      title: "Another Story",
+      status: "published",
+      createdAt: "2024-01-04T00:00:00Z",
+      currentWordCount: 50,
+      wordLimit: 200,
+      startingPrompt: "In a galaxy far, far away..."
+    }
+  ])
+ contribution_upsertMany(data: [
+    {
+      id: "750e8400-e29b-41d4-a716-446655440000",
+      storyId: "650e8400-e29b-41d4-a716-446655440000",
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      createdAt: "2024-01-05T00:00:00Z",
+      orderInStory: 1,
+      word: "Hello"
+    },
+    {
+      id: "750e8400-e29b-41d4-a716-446655440001",
+      storyId: "650e8400-e29b-41d4-a716-446655440001",
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      createdAt: "2024-01-06T00:00:00Z",
+      orderInStory: 1,
+      word: "Goodbye"
+    }
+  ])
+}
